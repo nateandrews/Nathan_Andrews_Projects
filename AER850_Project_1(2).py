@@ -1,0 +1,170 @@
+import pandas as pd
+
+# file path
+file_path = '/Users/nathanandrews/Downloads/Project_1_Data.csv'
+
+# load the CSV file
+df = pd.read_csv(file_path)
+
+#Display the first few rows to verify the data is loaded correctly
+#print(df.head())
+#print(df.shape)
+#print(df.info())
+#print(df.isnull().sum())
+#print(df.describe())
+
+#df_cleaned = df.dropna()
+#df_filled = df.fillna(df.mean()) all code commented out is for data cleaning checks
+
+import pandas as pd
+
+#calculate statistics for X, Y, and Z
+step_stats_X = df.groupby('Step')['X'].agg(['mean', 'std', 'min', 'max']).rename(columns=lambda col: 'X_' + col)
+step_stats_Y = df.groupby('Step')['Y'].agg(['mean', 'std', 'min', 'max']).rename(columns=lambda col: 'Y_' + col)
+step_stats_Z = df.groupby('Step')['Z'].agg(['mean', 'std', 'min', 'max']).rename(columns=lambda col: 'Z_' + col)
+
+#concatenate X, Y, and Z statistics
+step_stats_XYZ = pd.concat([step_stats_X, step_stats_Y, step_stats_Z], axis=1)
+
+# Ensure all columns are displayed when printing
+pd.set_option('display.max_columns', None)
+
+# Display the combined DataFrame
+print(step_stats_XYZ)
+
+# Check unique Y values within each step
+print(df.groupby('Step')['Y'].unique())
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sns
+
+#convert x, y, z to numpy arrays
+X = np.array(df['X'])
+Y = np.array(df['Y'])
+Z = np.array(df['Z'])
+Step = np.array(df['Step'])
+
+#setting up figure and 3d axis
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+
+#creating color palette for steps
+palette = sns.color_palette('tab10', n_colors=len(np.unique(Step)))
+
+#plot data
+scatter = ax.scatter(X, Y, Z, c=Step, cmap='tab10')
+
+#add labels
+ax.set_xlabel('X Coordinate')
+ax.set_ylabel('Y Coordinate')
+ax.set_zlabel('Z Coordinate')
+ax.set_title('3D Scatter Plot of X, Y, Z Coordinates by Step')
+
+#add color bar 
+legend1 = ax.legend(*scatter.legend_elements(), title="Step")
+ax.add_artist(legend1)
+
+#display plot
+plt.show()
+
+import seaborn as sns
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+#creating dataframe that contains features and target variable
+data_for_corr = df[['X', 'Y', 'Z', 'Step']]
+
+#calculate correlation maxtrix via pearson correlation
+corr_matrix = data_for_corr.corr(method='pearson')
+
+#displaying correlation matrix
+print("Correlation Matrix:")
+print(corr_matrix)
+
+#plotting correlation heatmap
+plt.figure(figsize=(8, 6))
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', linewidths=0.5, fmt='.2f')
+plt.title('Correlation Heatmap of X, Y, Z with Step')
+plt.show()
+
+#Step 4: Classification Model Development
+from sklearn.model_selection import train_test_split
+
+#Features (x, y, z) and target varibale (Step)
+X = df[['X', 'Y', 'Z']]
+y = df['Step']
+
+#split data - 80% training, 20% testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 42)
+
+print(f"Training data shape: {X_train.shape}")
+print(f"Testing data shape: {X_test.shape}")
+
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.preprocessing import StandardScaler
+
+#scaling data
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+#logistic regression
+logistic_regression = LogisticRegression(max_iter = 1000)
+logistic_params = {'C': [0.01, 0.1, 1, 10, 100]}
+logistic_grid = GridSearchCV(logistic_regression, logistic_params, cv = 5)
+
+#random forest
+random_forest = RandomForestClassifier()
+rf_params = {'n_estimators': [50, 100, 200], 'max_depth': [None, 10, 20, 30]}
+rf_grid = GridSearchCV(random_forest, rf_params, cv = 5)
+
+#support vector machine
+svm = SVC()
+svm_params = {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf']}
+svm_grid = GridSearchCV(estimator = svm, param_grid = svm_params, cv = 5)
+
+#fit the model
+svm_grid.fit(X_train_scaled, y_train)
+print(f"Best SVM Parameters: {svm_grid.best_params_}")
+
+#gradient boosting utilizing RandomizedSearchCV
+gradient_boosting = GradientBoostingClassifier()
+gb_params = {'n_estimators': [50, 100, 200],
+             'learning_rate': [0.01, 0.1, 0.2],
+             'max depth': [3, 5, 7]}
+gb_random_search = RandomizedSearchCV(gradient_boosting, gb_params, cv = 5, n_iter = 10, random_state = 42)
+
+#training the model
+
+#fit logistic regression model
+logistic_grid.fit(X_train_scaled, y_train)
+print(f"Best Logistic Regression Parameters: {logistic_grid.best_params_}")
+
+#fit random forest model
+rf_grid.fit(X_train_scaled, y_train)
+print(f"Best Random Forest Parameters: {rf_grid.best_params_}")
+
+#fit SVM model
+svm_grid.fit(X_train_scaled, y_train)
+print(f"Best SVM Parameters: {svm_grid.best_params_}")
+
+#fit gradient boosting model
+gb_random_search.fit(X_train, y_train)
+print(f"Best Gradient Boosting Parameters: {gb_random_search.best_params_}")
+
+
+
+
+
+
+
+
+
