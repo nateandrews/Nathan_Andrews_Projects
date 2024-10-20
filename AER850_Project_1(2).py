@@ -121,9 +121,13 @@ logistic_regression = LogisticRegression(max_iter = 1000)
 logistic_params = {'C': [0.01, 0.1, 1, 10, 100]}
 logistic_grid = GridSearchCV(logistic_regression, logistic_params, cv = 5)
 
+#ensure xtrain and xtest have correct feature names for random forest
+X_train_df = pd.DataFrame(X_train_scaled, columns = ['X', 'Y', 'Z'])
+X_test_df = pd.DataFrame(X_test_scaled, columns = ['X', 'Y', 'Z'])
+
 #random forest
 random_forest = RandomForestClassifier()
-rf_params = {'n_estimators': [50, 100, 200], 'max_depth': [None, 10, 20, 30]}
+rf_params = {'n_estimators': [50, 100, 200], 'max_depth': [None, 10, 20, 30], 'min_samples_split':[2, 5, 10], 'min_samples_leaf':[1, 2, 4]}
 rf_grid = GridSearchCV(random_forest, rf_params, cv = 5)
 
 #support vector machine
@@ -139,7 +143,7 @@ print(f"Best SVM Parameters: {svm_grid.best_params_}")
 gradient_boosting = GradientBoostingClassifier()
 gb_params = {'n_estimators': [50, 100, 200],
              'learning_rate': [0.01, 0.1, 0.2],
-             'max depth': [3, 5, 7]}
+             'max_depth': [3, 5, 7]}
 gb_random_search = RandomizedSearchCV(gradient_boosting, gb_params, cv = 5, n_iter = 10, random_state = 42)
 
 #training the model
@@ -149,7 +153,7 @@ logistic_grid.fit(X_train_scaled, y_train)
 print(f"Best Logistic Regression Parameters: {logistic_grid.best_params_}")
 
 #fit random forest model
-rf_grid.fit(X_train_scaled, y_train)
+rf_grid.fit(X_train_df, y_train)
 print(f"Best Random Forest Parameters: {rf_grid.best_params_}")
 
 #fit SVM model
@@ -160,7 +164,75 @@ print(f"Best SVM Parameters: {svm_grid.best_params_}")
 gb_random_search.fit(X_train, y_train)
 print(f"Best Gradient Boosting Parameters: {gb_random_search.best_params_}")
 
+#Step 5: Model Performance Analysis
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
+#function to evaluate and display the metrics
+def evaluate_model(model, X_test, y_test, model_name):
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, average = 'weighted', zero_division = 0)
+    recall = recall_score(y_test, y_pred, average = 'weighted')
+    f1 = f1_score(y_test, y_pred, average = 'weighted')
+    
+    print(f"{model_name} Performance:")
+    print(f"Accuracy: {accuracy:.2f}")
+    print(f"Precision: {precision:.2f}")
+    print(f"Recall: {recall:.2f}")
+    print(f"F1 Score: {f1:.2f}")
+    
+    #confusion matrix
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize = (6, 4))
+    sns.heatmap(cm, annot = True, fmt = 'd', cmap = 'Blues')
+    plt.title(f'{model_name} Confusion Matrix')
+    plt.ylabel('Actual Label')
+    plt.xlabel('Predicted Label')
+    plt.show()
+    
+if 'logistic_grid' in locals() and 'rf_grid' in locals() and 'svm_grid' in locals() and 'gb_random_search' in locals():
+    #evaluating models
+    evaluate_model(logistic_grid.best_estimator_, X_test_scaled, y_test, "Logistic Regression")
+    evaluate_model(rf_grid.best_estimator_, X_test_df, y_test, "Random Forest")
+    evaluate_model(svm_grid.best_estimator_, X_test_scaled, y_test, "SVM")
+    evaluate_model(gb_random_search.best_estimator_, X_test, y_test, "Gradient Boosting")
+else:
+    print("Make sure all models are properly trained before evaluation.")
+    
+    #Step 6: stacked model performance analysis
+    from sklearn.ensemble import StackingClassifier
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import cross_val_score
+    
+    #define base estimators using the best estimators from previous models
+    base_estimators = [
+        ('random_forest', rf_grid.best_estimator_),
+        ('svm', svm_grid.best_estimator_)
+        ]
+    
+    #define final estimator
+    final_estimator = LogisticRegression(max_iter = 1000)
+    
+    #create StackingClassifier
+    stacking_clf = StackingClassifier(
+        estimators = base_estimators,
+        final_estimator = final_estimator,
+        cv = 5
+        )
+    
+    #fit stacking classifier on scaled training data
+    stacking_clf.fit(X_train_scaled, y_train)
+    print("Stacking Classifier trained successfully.")
+    
+    #evaluate stacked model
+    evaluate_model(stacking_clf, X_test_scaled, y_test, "Stacked Classifier")
+    
+    #cross validate stacked model and display scores
+    cv_scores = cross_val_score(stacking_clf, X_train_scaled, y_train, cv = 5)
+    print(f"Stacked Classifier Cross-Validation Accuracy: {cv_scores.mean():.2f}")
+    
 
 
 
